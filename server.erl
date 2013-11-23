@@ -6,7 +6,7 @@ server_start() ->
 
 send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	{From, Tar, Nounce} = Msg,
-	From ! {self(),{Nounce,key_gen(From,Tar),Tar,{kab,From}},replyKey},
+	From ! {self(),{Nounce,key_gen(From,Tar),Tar,{key_gen(From,Tar),From}},replyKey},
 	io:format("Server's message sent back!~n",[]).
 
 loop() ->
@@ -19,5 +19,5 @@ loop() ->
 			loop()
 	end.
 
-key_gen(From, To) ->
+key_gen(_, _) ->
 	101.
