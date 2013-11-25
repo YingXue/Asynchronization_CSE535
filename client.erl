@@ -39,8 +39,9 @@ loop() ->
 			loop();
 		{_, Msg, replyKey} -> %% receive S -> A
 			io:format("Server replied ~p to ~p!~n",[Msg,self()]),
-			{_, _, Tar, _} = Msg,			
-			send(Tar, Msg, needAuth),
+			Msg_tupple = decrypt(Msg),
+			{_, _, Tar, _} = Msg_tupple,			
+			send(Tar, Msg_tupple, needAuth),
 			loop();
 		{From, Msg, needAuth} -> %% receive A -> B t1
 			send(From, Msg, replyAuth),
@@ -57,3 +58,10 @@ nonce_gen() ->
 	random:seed(erlang:now()),
 	random:uniform().
 
+decrypt(Msg) ->
+	Key = <<"abcdefghabcdefgh">>,  %% Key_AS
+	IV = <<"1234abcdabcdefgh">>,
+	Msg_binary= crypto:aes_cfb_128_decrypt(Key, IV, Msg), %%string format of msg
+	Msg_list = binary_to_term(Msg_binary),
+	Msg_tuple = list_to_tuple(Msg_list),
+	Msg_tuple.
