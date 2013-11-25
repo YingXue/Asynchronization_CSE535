@@ -14,4 +14,4 @@ process_neg(Alice, Bob, Server) ->
 	io:format("Alice:~p ~n",[Alice]),
 	io:format("Bob:~p ~n",[Bob]),
 	io:format("Server:~p ~n",[Server]),
-	Alice ! {Server, Bob, send2Server}.
+	Alice ! {Server, Bob, send2Server}.  %% ask Alice to contact Server for reaching Bob

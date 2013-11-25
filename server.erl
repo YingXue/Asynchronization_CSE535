@@ -5,8 +5,8 @@ server_start() ->
 	spawn (server,loop,[]).
 
 send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
-	{From, Tar, Nounce} = Msg,
-	From ! {self(),{Nounce,key_gen(From,Tar),Tar,{key_gen(From,Tar),From}},replyKey},
+	{From, Tar, Nonce} = Msg,
+	From ! {self(),{Nonce,key_gen(From,Tar),Tar,{key_gen(From,Tar),From}},replyKey},
 	io:format("Server's message sent back!~n",[]).
 
 loop() ->
@@ -21,3 +21,4 @@ loop() ->
 
 key_gen(_, _) ->
 	101.
+	%% need to record from,tar,key
