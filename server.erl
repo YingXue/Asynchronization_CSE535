@@ -6,9 +6,10 @@ server_start() ->
 
 send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	{From, Tar, Nonce} = Msg,
-	Msg_new = {Nonce,key_gen(From,Tar),Tar,{key_gen(From,Tar),From}},
-	%% need encrypt, share IV and key
-	From ! {self(), encrypt(Msg_new,From,replyKey), replyKey},
+	K_From_Tar = key_gen(From, Tar),
+	Msg_new = {Nonce, K_From_Tar, Tar, {K_From_Tar, From}},
+	%% need encrypt, with shared IV and key
+	From ! {self(), encrypt(Msg_new, From, Tar, replyKey), replyKey},
 	io:format("Server's message sent back!~n",[]).
 
 loop() ->
@@ -22,13 +23,26 @@ loop() ->
 	end.
 
 key_gen(_, _) ->
-	101.
+	101. %% K_AB
 	%% need to record from,tar,key
 
-encrypt(Msg,_,replyKey) ->
-	Key = <<"abcdefghabcdefgh">>,  %% Key_AS
-	IV = <<"1234abcdabcdefgh">>,
-	Msg_list = tuple_to_list(Msg),
-	Msg_binary = term_to_binary(Msg_list),
-	Msg_encrypt = crypto:aes_cfb_128_encrypt(Key, IV, Msg_binary),
-	Msg_encrypt.
+encrypt(Msg, _, _, replyKey) ->
+	Key_From = <<"alicealicealicek">>, %% Key_From: assume get it from server's database
+	IV_From  = <<"alicealicealicev">>, %% IV_From	
+
+	Key_Tar  = <<"bobkeybobkeybobk">>, %% Key_Tar
+	IV_Tar   = <<"bobivvbobivvbobv">>, %% IV_Tar
+
+	%% encrypt Target's msg with Key_Tar
+	{Nonce, K_From_Tar, Tar, TarMsg} = Msg,
+	TarMsg_list = tuple_to_list(TarMsg),
+	TarMsg_binary = term_to_binary(TarMsg_list),
+	TarMsg_encrypt = crypto:aes_cfb_128_encrypt(Key_Tar, IV_Tar, TarMsg_binary),
+
+	%% encrypy the whole msg with Key_From
+	FromMsg = {Nonce, K_From_Tar, Tar, TarMsg_encrypt},
+	FromMsg_list = tuple_to_list(FromMsg),
+	FromMsg_binary = term_to_binary(FromMsg_list),
+	FromMsg_encrypt = crypto:aes_cfb_128_encrypt(Key_From, IV_From, FromMsg_binary),
+
+	FromMsg_encrypt.
