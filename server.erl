@@ -8,9 +8,7 @@ send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	{From, Tar, Nonce} = Msg,
 	K_From_Tar = key_gen(From, Tar),
 	Msg_new = {Nonce, K_From_Tar, Tar, {K_From_Tar, From}},
-	%% need encrypt, with shared IV and key
-	From ! {self(), encrypt(Msg_new, From, Tar, replyKey), replyKey},
-	io:format("Server's message sent back!~n",[]).
+	From ! {self(), encrypt(Msg_new, From, Tar, replyKey), replyKey}.
 
 loop() ->
 	receive
@@ -23,15 +21,15 @@ loop() ->
 	end.
 
 key_gen(_, _) ->
-	101. %% K_AB
+	<<"alicebobalicebob">>. %% K_AB
 	%% need to record from,tar,key
 
 encrypt(Msg, _, _, replyKey) ->
-	Key_From = <<"alicealicealicek">>, %% Key_From: assume get it from server's database
-	IV_From  = <<"alicealicealicev">>, %% IV_From	
+	Key_From = <<"alicealicealicek">>, %% Key_From: assume get it from server's key_table
+	IV_From  = <<"1234567887654321">>, %% IV_From	
 
 	Key_Tar  = <<"bobkeybobkeybobk">>, %% Key_Tar
-	IV_Tar   = <<"bobivvbobivvbobv">>, %% IV_Tar
+	IV_Tar   = <<"1234567887654321">>, %% IV_Tar
 
 	%% encrypt Target's msg with Key_Tar
 	{Nonce, K_From_Tar, Tar, TarMsg} = Msg,
