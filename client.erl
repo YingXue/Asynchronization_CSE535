@@ -23,14 +23,18 @@ send(Tar, Msg, needAuth) -> %% A -> B for authentication req
 	io:format("~p forwarded message ~p to ~p, need authentication reply!~n",[self(),Forward,Tar]);
 
 send(Tar, Msg, replyAuth) -> %% B -> A for authentication complete
-	{K_AB,_} = Msg,
-	ets:insert(my_table,{{self(),Tar}, K_AB}), %% B record K_AB
-	ets:insert(my_table,{{Tar,self()}, K_AB}),
-	Nonce = nonce_gen(self()),%% Nonce_B
-	%%{N_B}K_AB
-	Nonce_enc = encrypt({Nonce}, K_AB, sharedKey),
-	Tar ! {self(), Nonce_enc , replyAuth},
-	io:format("~p replied ~p to ~p. Authentication complete!~n",[self(),Nonce_enc,Tar]);
+	{K_AB,_,Timestamp} = Msg,
+	Timestamp_Self = calendar:time_to_seconds(erlang:now()),
+	if Timestamp_Self - Timestamp < 3*1000000 -> % check if timestamp is fresh
+		ets:insert(my_table,{{self(),Tar}, K_AB}), %% B record K_AB
+		ets:insert(my_table,{{Tar,self()}, K_AB}),
+		Nonce = nonce_gen(self()),%% Nonce_B
+		Nonce_enc = encrypt({Nonce}, K_AB, sharedKey),	%%{N_B}K_AB
+		Tar ! {self(), Nonce_enc , replyAuth},
+		io:format("~p replied ~p to ~p. Authentication complete!~n",[self(),Nonce_enc,Tar]);
+		true -> %% not fresh timestamp, refuse to continue
+		io:format("Timestamp expired~n",[])
+	end;
 
 send(Tar, Msg, varify) -> %% A -> B for varify completion
 	[{_,K_AB}] = ets:lookup(my_table, {self(),Tar}),
@@ -81,7 +85,7 @@ loop() ->
 				New_nonce + 1 == Old_nonce ->
 					send(From, "hello", ok);
 				true ->
-					true
+					io:format("Nonce is not right!~n",[])
 			end,
 			loop()
 	end.

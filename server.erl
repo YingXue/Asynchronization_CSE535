@@ -7,7 +7,8 @@ server_start() ->
 send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	{From, Tar, Nonce} = Msg,
 	K_From_Tar = key_gen(From, Tar),
-	Msg_new = {Nonce, K_From_Tar, Tar, {K_From_Tar, From}},
+	Timestamp = calendar:time_to_seconds(erlang:now()),
+	Msg_new = {Nonce, K_From_Tar, Tar, {K_From_Tar, From, Timestamp}},
 	From ! {self(), encrypt(Msg_new, From, Tar, replyKey), replyKey}.
 
 loop() ->
@@ -21,8 +22,11 @@ loop() ->
 	end.
 
 key_gen(_, _) ->
-	<<"alicebobalicebob">>. %% K_AB
-	%% need to record from,tar,key
+	random:seed(erlang:now()), %% generate fresh random K_AB
+	Nonce = random:uniform(),
+	Key_String = string:left(lists:flatten(io_lib:format("~p", [Nonce])),16), %% use 16 bit as key
+	Key_Binary = list_to_binary(Key_String),
+	Key_Binary.
 
 encrypt(Msg, _, _, replyKey) ->
 	Key_From = <<"alicealicealicek">>, %% Key_From: assume get it from server's key_table
