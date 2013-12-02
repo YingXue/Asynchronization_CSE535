@@ -5,10 +5,8 @@ intruder_start() ->
 	PID = spawn (intruder,loop,[]),
 	PID.
 
-
-
-
-send(_, Msg, needAuth) -> %% A -> B for authentication req
+%% forward authentication message from Alice to Bob
+send(_, Msg, needAuth) -> 
 	{Tar, Forward} = Msg, 
 	%%{N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	%% msg format: {from, content, type}
@@ -16,8 +14,7 @@ send(_, Msg, needAuth) -> %% A -> B for authentication req
 	io:format("~p forwarded message ~p to ~p, need authentication reply!~n",[self(),Forward,Tar]).
 
 
-
-%% loop to receive
+%% loop to receive message from other processes
 loop() ->
 	receive
 		{From, Msg, testIntruder} -> %% complete, ready to communicate.

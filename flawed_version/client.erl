@@ -1,28 +1,32 @@
 -module(client).
--export([client_start/0,loop/0]).
+-export([client_start/0, loop/0]).
 
+%% start the process
 client_start() ->
 	PID = spawn (client,loop,[]),
 	PID.
 
 
 
-%% send
-send(Server, Tar, send2Server) ->  %% A-> S for reaching B
+%% for sending messages between processes
+%% A-> S : A,B, N_A for reaching B
+send(Server, Tar, send2Server) ->  
 	%% A -> S: A, B, N_A
 	%% msg format: {from, content, type}
 	Msg = {self(), Tar, nonce_gen(self())},  %% A,B, N_A
 	Server! {self(),Msg, needKey},  	
 	io:format("~p Message ~p sent to server!~n",[self(),Msg]);
 
-send(Tar, Msg, needAuth) -> %% A -> B for authentication req
+%% A -> B formard msg from S to B for authentication req
+send(Tar, Msg, needAuth) -> 
 	{_, _, _, Forward} = Msg, 
 	%%{N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	%% msg format: {from, content, type}
 	Tar! {self(), Forward, needAuth}, %% formard msg from S to B
 	io:format("~p forwarded message ~p to ~p, need authentication reply!~n",[self(),Forward,Tar]);
 
-send(Tar, Msg, replyAuth) -> %% B -> A for authentication complete
+%% B -> A with B's nonce indicating authentication complete
+send(Tar, Msg, replyAuth) -> 
 	{K_AB,_} = Msg,
 	ets:insert(my_table,{{self(),Tar}, K_AB}), %% B record K_AB
 	ets:insert(my_table,{{Tar,self()}, K_AB}),
@@ -32,7 +36,8 @@ send(Tar, Msg, replyAuth) -> %% B -> A for authentication complete
 	Tar ! {self(), Nonce_enc , replyAuth},
 	io:format("~p replied ~p to ~p. Authentication complete!~n",[self(),Nonce_enc,Tar]);
 
-send(Tar, Msg, varify) -> %% A -> B for varify completion
+%% A -> B with a -1 for B's nonce for varify completion
+send(Tar, Msg, varify) -> 
 	[{_,K_AB}] = ets:lookup(my_table, {self(),Tar}),
 	Msg_tuple = decrypt(Msg, K_AB,varify),
 	io:format("~p decrypt ~p's message ~p~n",[self(),Tar,Msg_tuple]),
@@ -41,12 +46,13 @@ send(Tar, Msg, varify) -> %% A -> B for varify completion
 	Tar! {self(), Msg_enc, varify},
 	io:format("~p sends back ~p showing she's alive!~n",[self(),Msg_enc]);
 
+%%  protocol done, processes' are talking
 send(Tar, Msg, ok) ->
 	[{_,K_AB}] = ets:lookup(my_table, {self(),Tar}),
 	Tar! {self(), encrypt({Msg}, K_AB, sharedKey), talk},
 	io:format("~p sends hello to ~p~n",[self(), Tar]).
 
-%% loop to receive
+%% loop to receive message from other processes
 loop() ->
 	receive
 		{create_key_table} ->
@@ -93,6 +99,7 @@ nonce_gen(PID) ->
 	ets:insert(my_table,{PID, Nonce}),
 	Nonce.
 
+%% decrypt message using AES provided by ERLANG crypto module
 decrypt(Msg, replyKey) -> %% decrypt msg from S
 	Key = <<"alicealicealicek">>, %% Key_A : hard coded
 	IV  = <<"1234567887654321">>, %% IV_A
@@ -116,7 +123,7 @@ decrypt(Msg, Key, varify) ->
 	Msg_tuple = list_to_tuple(Msg_list),
 	Msg_tuple.
 
-
+%% encrypt message using AES provided by ERLANG crypto module
 encrypt(Msg, Key, sharedKey) ->
 	IV  = <<"1234567887654321">>, %% IV_Tar
 	%% encrypt msg with Key_AB

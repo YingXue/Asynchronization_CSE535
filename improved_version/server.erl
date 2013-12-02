@@ -4,6 +4,7 @@
 server_start() ->
 	spawn (server,loop,[]).
 
+%% server reply shared key 
 send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	{From, Tar, Nonce} = Msg,
 	K_From_Tar = key_gen(From, Tar),
@@ -11,6 +12,7 @@ send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	Msg_new = {Nonce, K_From_Tar, Tar, {K_From_Tar, From, Timestamp}},
 	From ! {self(), encrypt(Msg_new, From, Tar, replyKey), replyKey}.
 
+%% loop to receive messages from processes
 loop() ->
 	receive
 		{From, Msg} ->
@@ -21,13 +23,15 @@ loop() ->
 			loop()
 	end.
 
+%% generate a shared random key
 key_gen(_, _) ->
 	random:seed(erlang:now()), %% generate fresh random K_AB
 	Nonce = random:uniform(),
 	Key_String = string:left(lists:flatten(io_lib:format("~p", [Nonce])),16), %% use 16 bit as key
 	Key_Binary = list_to_binary(Key_String),
 	Key_Binary.
-
+	
+%% encrypt key using AES provided by ERLANG crypto module
 encrypt(Msg, _, _, replyKey) ->
 	Key_From = <<"alicealicealicek">>, %% Key_From: assume get it from server's key_table
 	IV_From  = <<"1234567887654321">>, %% IV_From	

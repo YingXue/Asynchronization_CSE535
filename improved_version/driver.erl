@@ -1,6 +1,7 @@
 -module(driver).
 -export([setup_env/0]).
 
+%% start processes
 setup_env() ->
 	%% setup clients
 	Alice = client:client_start(),
@@ -12,6 +13,8 @@ setup_env() ->
 	%% protocol starts
 	process_neg(Alice, Bob, Server).
 
+%% let alice start the conection by sending a message to server
+%% alice asking to communicate to Bob
 process_neg(Alice, Bob, Server) ->
 	io:format("Alice:~p ~n",[Alice]),
 	io:format("Bob:~p ~n",[Bob]),

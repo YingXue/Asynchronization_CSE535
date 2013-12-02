@@ -7,28 +7,26 @@ client_start() ->
 
 
 
-%% for sending messages between processes
-%% A-> S : A,B, N_A for reaching B
-send(Server, Tar, send2Server) ->  
+%% send
+send(Server, Tar, send2Server) ->  %% A-> S for reaching B
 	%% A -> S: A, B, N_A
 	%% msg format: {from, content, type}
 	Msg = {self(), Tar, nonce_gen(self())},  %% A,B, N_A
 	Server! {self(),Msg, needKey},  	
 	io:format("~p Message ~p sent to server!~n",[self(),Msg]);
 
-%% A -> B formard msg from S to B for authentication req
-send(Tar, Msg, needAuth) -> 
+send(Tar, Msg, needAuth) -> %% A -> B for authentication req
 	{_, _, _, Forward} = Msg, 
 	%%{N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	%% msg format: {from, content, type}
 	Tar! {self(), Forward, needAuth}, %% formard msg from S to B
+	ets:insert(my_table, {intruderTest, Forward}),
 	io:format("~p forwarded message ~p to ~p, need authentication reply!~n",[self(),Forward,Tar]);
 
-%% B -> A with B's nonce indicating authentication complete
-send(Tar, Msg, replyAuth) -> 
+send(Tar, Msg, replyAuth) -> %% B -> A for authentication complete
 	{K_AB,_,Timestamp} = Msg,
 	Timestamp_Self = calendar:time_to_seconds(erlang:now()),
-	if Timestamp_Self - Timestamp < 3*1000000 -> % check if timestamp is fresh
+	if Timestamp_Self - Timestamp < 3000 -> % check if timestamp is fresh
 		ets:insert(my_table,{{self(),Tar}, K_AB}), %% B record K_AB
 		ets:insert(my_table,{{Tar,self()}, K_AB}),
 		Nonce = nonce_gen(self()),%% Nonce_B
@@ -36,11 +34,10 @@ send(Tar, Msg, replyAuth) ->
 		Tar ! {self(), Nonce_enc , replyAuth},
 		io:format("~p replied ~p to ~p. Authentication complete!~n",[self(),Nonce_enc,Tar]);
 		true -> %% not fresh timestamp, refuse to continue
-		io:format("Timestamp expired~n",[])
+		io:format("Timestamp expired, not able to communicate!~n",[])
 	end;
 
-%% A -> B with a -1 for B's nonce for varify completion
-send(Tar, Msg, varify) -> 
+send(Tar, Msg, varify) -> %% A -> B for varify completion
 	[{_,K_AB}] = ets:lookup(my_table, {self(),Tar}),
 	Msg_tuple = decrypt(Msg, K_AB,varify),
 	io:format("~p decrypt ~p's message ~p~n",[self(),Tar,Msg_tuple]),
@@ -49,13 +46,12 @@ send(Tar, Msg, varify) ->
 	Tar! {self(), Msg_enc, varify},
 	io:format("~p sends back ~p showing she's alive!~n",[self(),Msg_enc]);
 
-%%  protocol done, processes' are talking
 send(Tar, Msg, ok) ->
 	[{_,K_AB}] = ets:lookup(my_table, {self(),Tar}),
 	Tar! {self(), encrypt({Msg}, K_AB, sharedKey), talk},
 	io:format("~p sends hello to ~p~n",[self(), Tar]).
 
-%% loop to receive message from other processes
+%% loop to receive
 loop() ->
 	receive
 		{create_key_table} ->
@@ -92,6 +88,12 @@ loop() ->
 				true ->
 					io:format("Nonce is not right!~n",[])
 			end,
+			loop();
+		{Intruder, Tar, testIntruder} -> %%test intruder by "leaking" message
+			io:format("~n~n Intruder coming in~n~n",[]),
+			[{_,Forward}] = ets:lookup(my_table, intruderTest),
+			Intruder ! {self(),{Tar, Forward}, testIntruder},
+			io:format("~n~n Intruder coming in~n~n",[]),
 			loop()
 	end.
 
@@ -101,6 +103,7 @@ nonce_gen(PID) ->
 	Nonce = random:uniform(),
 	ets:insert(my_table,{PID, Nonce}),
 	Nonce.
+
 %% decrypt message using AES provided by ERLANG crypto module
 decrypt(Msg, replyKey) -> %% decrypt msg from S
 	Key = <<"alicealicealicek">>, %% Key_A : hard coded
