@@ -1,16 +1,25 @@
+%% @doc This is the client API.
 -module(client).
--export([client_start/0, loop/0]).
+-export([client_start/0, loop/0, send/3, nonce_gen/1, decrypt/2, encrypt/3]).
 
-%% start the process
+%% @doc start client the process.
+%% @spec client_start() -> pid()
 client_start() ->
 	PID = spawn (client,loop,[]),
 	PID.
 
 
 
-%% for sending messages between processes
-%% A-> S : A,B, N_A for reaching B
-send(Server, Tar, send2Server) ->  
+%% @doc for sending messages between processes.
+%%```
+%%	Different types of messages will be differentiated by atomic indicating its type
+%%	send(Server, Tar, send2Server) ->:  %% A-> S : A,B, N_A for reaching B
+%%	send(Tar, Msg, needAuth) ->: %% A -> B formard msg from S to B for 
+%%	send(Tar, Msg, replyAuth) ->: %% B -> A with B's nonce indicating authentication complete 
+%%	send(Tar, Msg, varify) ->: %% A -> B with a -1 for B's nonce for varify completion 
+%%	send(Tar, Msg, ok) ->: %%  protocol done, processes' are ready
+%% '''
+send(Server, Tar, send2Server) ->  %% A-> S : A,B, N_A for reaching B
 	%% A -> S: A, B, N_A
 	%% msg format: {from, content, type}
 	Msg = {self(), Tar, nonce_gen(self())},  %% A,B, N_A
@@ -52,7 +61,15 @@ send(Tar, Msg, ok) ->
 	Tar! {self(), encrypt({Msg}, K_AB, sharedKey), talk},
 	io:format("~p sends hello to ~p~n",[self(), Tar]).
 
-%% loop to receive message from other processes
+%% @doc loop to receive message from other processes.
+%% 	```
+%%	Different types of messages will be differentiated by atomic indicating its type
+%%	{Server, Tar, send2Server} ->: %%Alice receive a command telling her to send server a message for identification
+%%	{From, Msg, replyKey} ->: %%Alice receive message from server with Kab
+%%	{From, Msg, needAuth} ->: %%Bob receive message from Alice with the encrypted key forwarded from server
+%%	{From, Msg, replyAuth} ->: %%Alice receive a nonce from Bob
+%%	{From, Ms, verify} ->: %%Bob receive a nonce-1 from Alice
+%% '''
 loop() ->
 	receive
 		{create_key_table} ->
@@ -89,17 +106,20 @@ loop() ->
 				true ->
 					true
 			end,
+			[{_,Driver}] = ets:lookup(my_table,driver),
+			Driver ! endProtocol,
 			loop()
 	end.
 
-%% generate random nonce
+%% @doc generate random nonce.
+%% @spec nonce_gen(PID) -> number()
 nonce_gen(PID) -> 
 	random:seed(erlang:now()),
 	Nonce = random:uniform(),
 	ets:insert(my_table,{PID, Nonce}),
 	Nonce.
 
-%% decrypt message using AES provided by ERLANG crypto module
+%% @doc decrypt message using AES provided by ERLANG crypto module.
 decrypt(Msg, replyKey) -> %% decrypt msg from S
 	Key = <<"alicealicealicek">>, %% Key_A : hard coded
 	IV  = <<"1234567887654321">>, %% IV_A
@@ -123,7 +143,7 @@ decrypt(Msg, Key, varify) ->
 	Msg_tuple = list_to_tuple(Msg_list),
 	Msg_tuple.
 
-%% encrypt message using AES provided by ERLANG crypto module
+%% @doc encrypt message using AES provided by ERLANG crypto module.
 encrypt(Msg, Key, sharedKey) ->
 	IV  = <<"1234567887654321">>, %% IV_Tar
 	%% encrypt msg with Key_AB

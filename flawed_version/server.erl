@@ -1,17 +1,23 @@
+%% @doc This is the server API.
 -module(server).
--export([server_start/0,loop/0]).
+-export([server_start/0,send/2,loop/0,key_gen/2,encrypt/4]).
 
+%% @doc start server the process.
+%% @spec server_start() -> pid()
 server_start() ->
 	spawn (server,loop,[]).
 
-%% server reply shared key 
+%% @doc server reply shared key. 
+%%```
+%% send(Msg, replyKey) ->: %%S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
+%% '''
 send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	{From, Tar, Nonce} = Msg,
 	K_From_Tar = key_gen(From, Tar),
 	Msg_new = {Nonce, K_From_Tar, Tar, {K_From_Tar, From}},
 	From ! {self(), encrypt(Msg_new, From, Tar, replyKey), replyKey}.
 
-%% loop to receive messages from processes
+%% @doc loop to receive messages from processes
 loop() ->
 	receive
 		{From, Msg} ->
@@ -22,7 +28,7 @@ loop() ->
 			loop()
 	end.
 
-%% generate a shared random key
+%% @doc generate a shared random key
 key_gen(_, _) ->
 	random:seed(erlang:now()), %% generate fresh random K_AB
 	Nonce = random:uniform(),
@@ -30,7 +36,11 @@ key_gen(_, _) ->
 	Key_Binary = list_to_binary(Key_String),
 	Key_Binary.
 
-%% encrypt key using AES provided by ERLANG crypto module
+%% @doc encrypt key using AES provided by ERLANG crypto module.
+%% 
+%% encrypt Target's msg with Key_Tar
+%%
+%% encrypy the whole msg with Key_From
 encrypt(Msg, _, _, replyKey) ->
 	Key_From = <<"alicealicealicek">>, %% Key_From: assume get it from server's key_table
 	IV_From  = <<"1234567887654321">>, %% IV_From	
