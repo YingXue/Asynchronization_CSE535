@@ -10,8 +10,13 @@ setup_env() ->
 	Server = server:server_start(),
 	%% setup key table
 	ets:new(my_table,[named_table,public]),
+	ets:insert(my_table,{driver, self()}),
 	%% protocol starts
-	process_neg(Alice, Bob, Server).
+	process_neg(Alice, Bob, Server),
+	receive
+		endProtocol ->
+			ets:delete(my_table)
+	end.
 
 %% let alice start the conection by sending a message to server
 %% alice asking to communicate to Bob

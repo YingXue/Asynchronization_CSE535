@@ -90,8 +90,10 @@ loop() ->
 				New_nonce + 1 == Old_nonce ->
 					send(From, "hello", ok);
 				true ->
-					io:format("Nonce is not right!~n",[])
+					true
 			end,
+			[{_,Driver}] = ets:lookup(my_table,driver),
+			Driver ! endProtocol,
 			loop()
 	end.
 
