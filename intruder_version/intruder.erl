@@ -19,7 +19,12 @@ loop() ->
 	receive
 		{From, Msg, testIntruder} -> %% complete, ready to communicate.
 			send(From, Msg, needAuth),
-			loop()
+			loop();
+		{_, _, replyAuth} -> %% intruder wins
+			io:format("Intruder wins...~n"),
+			[{_,Driver}] = ets:lookup(my_table,driver),
+			Driver ! endProtocol
+
 	end.
 
 

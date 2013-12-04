@@ -25,8 +25,10 @@ send(Tar, Msg, needAuth) -> %% A -> B for authentication req
 
 send(Tar, Msg, replyAuth) -> %% B -> A for authentication complete
 	{K_AB,_,Timestamp} = Msg,
-	Timestamp_Self = calendar:time_to_seconds(erlang:now()),
-	if Timestamp_Self - Timestamp < 3000 -> % check if timestamp is fresh
+	{M1, S1, MM1 } = Timestamp,
+	{M2, S2, MM2 } = erlang:now(),
+	Elapse = (M2 - M1) *1000000 + S2 - S1 + (MM2 - MM1)*0.000001,  % to seconds
+	if Elapse < 2 -> % check if timestamp is fresh
 		ets:insert(my_table,{{self(),Tar}, K_AB}), %% B record K_AB
 		ets:insert(my_table,{{Tar,self()}, K_AB}),
 		Nonce = nonce_gen(self()),%% Nonce_B
@@ -34,7 +36,9 @@ send(Tar, Msg, replyAuth) -> %% B -> A for authentication complete
 		Tar ! {self(), Nonce_enc , replyAuth},
 		io:format("~p replied ~p to ~p. Authentication complete!~n",[self(),Nonce_enc,Tar]);
 		true -> %% not fresh timestamp, refuse to continue
-		io:format("Timestamp expired, not able to communicate!~n",[])
+			io:format("Timestamp expired, not able to communicate!~n",[]),
+			[{_,Driver}] = ets:lookup(my_table,driver),
+			Driver ! endProtocol
 	end;
 
 send(Tar, Msg, varify) -> %% A -> B for varify completion

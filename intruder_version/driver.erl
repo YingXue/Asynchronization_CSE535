@@ -12,8 +12,13 @@ setup_env() ->
 	Intruder = intruder:intruder_start(),
 	%% seftup intruder
 	ets:new(my_table,[named_table,public]),
+	ets:insert(my_table,{driver, self()}),
 	%% protocol starts
-	process_neg(Alice, Bob, Server,Intruder).
+	process_neg(Alice, Bob, Server,Intruder),
+	receive
+		endProtocol ->
+			ets:delete(my_table)
+	end.
 
 %% let alice start the conection by sending a message to server
 %% alice asking to communicate to Bob
@@ -24,6 +29,6 @@ process_neg(Alice, Bob, Server,Intruder) ->
 	io:format("Server:~p ~n",[Server]),
 	io:format("Intruder:~p ~n",[Intruder]),
 	Alice ! {Server, Bob, send2Server},  %% ask Alice to contact Server for reaching Bob
-	timer:sleep(20000),
+	timer:sleep(5000),
 	Alice ! {Intruder , Bob, testIntruder},
 	ok.
