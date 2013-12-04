@@ -29,9 +29,9 @@ send(Tar, Msg, replyAuth) ->
 	{K_AB,_,Timestamp} = Msg,
 	{M1, S1, MM1 } = Timestamp,
 	{M2, S2, MM2 } = erlang:now(),
-	Elapse = (M1 - M2) *1000000 + S1 - S2 + (MM1 - MM2)*0.000001,
+	Elapse = (M2 - M1) *1000000 + S2 - S1 + (MM2 - MM1)*0.000001, %% to seconds
 	
-	if Elapse < 50 -> % check if timestamp is fresh
+	if Elapse < 10 -> % check if timestamp is fresh
 		ets:insert(my_table,{{self(),Tar}, K_AB}), %% B record K_AB
 		ets:insert(my_table,{{Tar,self()}, K_AB}),
 		Nonce = nonce_gen(self()),%% Nonce_B
