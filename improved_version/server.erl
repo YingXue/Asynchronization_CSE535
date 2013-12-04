@@ -8,8 +8,7 @@ server_start() ->
 send(Msg, replyKey) ->%% S -> A {N_A, K_AB, B, {K_AB, A}K_BS}K_AS
 	{From, Tar, Nonce} = Msg,
 	K_From_Tar = key_gen(From, Tar),
-	Timestamp = calendar:time_to_seconds(erlang:now()),
-	Msg_new = {Nonce, K_From_Tar, Tar, {K_From_Tar, From, Timestamp}},
+	Msg_new = {Nonce, K_From_Tar, Tar, {K_From_Tar, From, erlang:now()}},
 	From ! {self(), encrypt(Msg_new, From, Tar, replyKey), replyKey}.
 
 %% loop to receive messages from processes
